@@ -1,5 +1,5 @@
 /*
-	Inveterate
+	Inveterate Innovation
 */
 
 var SCREEN_WIDTH = window.innerWidth;
@@ -14,6 +14,7 @@ var orbitCamera, orthographicCamera, tetrahedron, plane;
 //var frustumSize = 600;
 var clock = new THREE.Clock();
 var mouse = new THREE.Vector2(), INTERSECTED; // https://github.com/mrdoob/three.js/blob/master/examples/webgl_interactive_cubes.html
+var mouseX = 0, mouseY = 0; // https://github.com/mrdoob/three.js/blob/master/examples/canvas_geometry_earth.html#L75
 
 
 function init(){
@@ -52,7 +53,7 @@ function init(){
 }
 
 function setupCameras() {
-	camera = new THREE.PerspectiveCamera( 50, 0.5 * aspect, 1, 10000 );
+	camera = new THREE.PerspectiveCamera( 50, 1, 1, 10000 ); // 0.5 * aspect
 	orbitCamera = new THREE.PerspectiveCamera( 75, 0.5 * aspect, 1, 10000 );
 	orthographicCamera = new THREE.OrthographicCamera( SCREEN_WIDTH / - 20, SCREEN_WIDTH / 20, SCREEN_HEIGHT / 20, SCREEN_HEIGHT / - 20, 1, 10000 );
 	initialCameraHelper = new THREE.CameraHelper( camera );
@@ -71,6 +72,10 @@ function setupCameras() {
 	orthographicCamera.position.z = 40;
 	orthographicCamera.position.x = -40;
 	//orthographicCamera.rotation.z = (Math.PI / 2 , 0, 0);
+	camera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+	orbitCamera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+	camera.updateProjectionMatrix();
+	orbitCamera.updateProjectionMatrix();
 
 	activeCamera = camera;
 	showHelpers = true;
@@ -139,9 +144,13 @@ function setupScene() {
 }
 
 function onDocumentMouseMove( event ) {
-	event.preventDefault();
+	event.preventDefault();	// ???
+	mouseX = ( event.clientX - window.innerWidth / 2) ; //windowHalfX );
+	mouseY = ( event.clientY - window.innerHeight / 2) ; //windowHalfY );
+	/*
 	mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+	*/
 	// console.log("Mouse x,y: " + mouse.x + ", " + mouse.y);
 }
 
@@ -149,10 +158,11 @@ function onDocumentMouseMove( event ) {
 function animateObjects() {
 	tetrahedron.rotation.y += 0.01
 	//camera.position.z += 0.01;
-	var r = Date.now() * 0.00001;
+	var r = Date.now() * 0.0001;
 	var fudgeDistance = 50;
 	orbitCamera.position.x = fudgeDistance * Math.cos( r );
 	orbitCamera.position.z = fudgeDistance * Math.sin( r );
+	camera.lookAt(tetrahedron.position);
 	orbitCamera.lookAt(tetrahedron.position);
 	orthographicCamera.lookAt(tetrahedron.position);
 }
@@ -184,11 +194,15 @@ function render(){
 	*/
 	requestAnimationFrame( render );
 	animateObjects();
-	executeJQuery();
+	updateTime();
 	/*
 		https://github.com/mrdoob/three.js/blob/master/examples/webgl_interactive_cubes.html
-	*/
-	raycaster.setFromCamera( mouse, camera );
+	r.setFromCamera( mouse, camera );
+	var intersects = raycaster.intersectObjects(scene.children);
+	for (var i = 0; i < intersects.length; i++) {
+		console.log("intersects.length: " + intersects.length);
+		//intersects[0].object.material.color.set(0xff0000);
+	}
 	/*
 	var intersects = raycaster.intersectObjects( scene.children );
 	if ( intersects.length > 0 ) {
@@ -202,6 +216,27 @@ function render(){
 	} else {
 		if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
 		INTERSECTED = null;
+	}
+	*/
+	switch (activeCamera) {
+		case camera:
+			camera.position.x += ( mouseX - camera.position.x ) * 0.05;
+			camera.position.y += ( - mouseY - camera.position.y ) * 0.05;
+			if (camera.position.y < 1 )	camera.position.y = 1;
+		break;
+		case orbitCamera:
+		/*
+			var r = Date.now() * 0.00001;
+			orbitCamera.position.x += ( mouseX - orbitCamera.position.x ) * Math.cos( r );
+			orbitCamera.position.y += ( mouseX - orbitCamera.position.y ) * Math.sin( r );
+			*/
+		break;
+		case orthographicCamera:
+
+		break;
+		default:
+
+		break;
 	}
 	/*
 		Conform to this
@@ -231,13 +266,14 @@ try {
 	console.log("End of catch block. Error? "+errorReport);
 }
 
-function executeJQuery() {
+function updateTime() {
 	$(function() {
 		$("#myTime").text("Time: " + clock.getElapsedTime().toFixed(2));
 	});
 }
 
 $(function() {
+	$('#myGUI').children("#myGUI > h1, #myTime, #cameraButton, #helpersButton").hide();
 	$(".guiButton").css({"font-size" : (SCREEN_HEIGHT+SCREEN_WIDTH)/40 }); /* two of two cf. on window resize */
 	$("#cameraButton").click(function() {
 		//if (activeCamera == orbitCamera ) { activeCamera = camera ; } else { activeCamera = orbitCamera ;}
@@ -258,7 +294,7 @@ $(function() {
 			break;
 		}
 		console.log("Switch button pressed.");
-	})
+	});
 	$("#helpersButton").click(function() {
 		if (showHelpers) { 
 			showHelpers = false; 
@@ -281,7 +317,9 @@ $(function() {
 			$(this).text("Close Controls");
 		});
 		*/
-		$('#myGUI').children("#myGUI > h1, #myTime, #cameraButton, #helpersButton").slideToggle('slow'); 
+		if ($("#guiToggleButton").text() == "Open Controls") $("#guiToggleButton").text("Close Controls")
+			else $("#guiToggleButton").text("Open Controls");
+		$('#myGUI').children("#myGUI > h1, #myTime, #cameraButton, #helpersButton").slideToggle('fast'); 
 	});
 	console.log("End of jQuery");
 
